@@ -1,7 +1,3 @@
-Here is the updated **README.md** with the new project name.
-
------
-
 # 🔍 Vector Database Search
 
 This project is a containerized search engine capable of indexing and searching through **Books (CSV)**, **Images**, **Videos**, and **Audio** files using vector similarity. It uses **Milvus** for the vector database and **Streamlit** for the web interface, all wrapped in a single Docker environment.
@@ -71,4 +67,5 @@ docker rm -f milvus-etcd milvus-minio milvus-standalone search-app
 ```
 
 **"Failed to connect to Milvus"**
+
 Ensure you are running the app via `docker-compose up`. Do not try to run `streamlit run app.py` directly on your local machine, as it won't be able to see the database inside the Docker network.
