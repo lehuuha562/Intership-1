@@ -5,8 +5,6 @@
 **Author:** Le Huu Ha  
 **Student ID:** 2470489  
 **Supervisor:** Prof. Thoai Nam  
-**Version:** OpenWork Vol. 3
-
 -----
 
 ## 📖 Overview
@@ -99,3 +97,4 @@ If `run.bat` fails because containers are already running, try running `close.ba
 
 **"Ollama Connection Refused"**
 Ensure the `ollama-container` is healthy. [cite_start]It runs on internal port `11434`[cite: 38]. If using RAG, wait 30 seconds after startup for the model to load into memory.
+
