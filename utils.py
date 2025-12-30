@@ -8,8 +8,7 @@ from typing import Any
 
 console = Console()
 
-# --- RESTORED CONSTANTS & HELPERS ---
-VECTOR_DIM = 384  # <--- This was missing!
+VECTOR_DIM = 512  
 COLLECTION_NAME = "demo_embeddings"
 
 def save_json(data: Any, path: str):

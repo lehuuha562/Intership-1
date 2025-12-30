@@ -1,0 +1,22 @@
+# Ignore the database storage
+volumes/
+docker_data/
+
+# Ignore local python environments
+venv/
+.venv/
+__pycache__/
+
+# Ignore git history
+.git/
+.gitignore
+
+# Ignore VS Code settings
+.vscode/
+
+# Optional: If you don't want to bake your heavy data into the image
+# (Since you are mounting it via docker-compose anyway)
+data/
+
+DockerDesktopWSL/
+ollama_data/

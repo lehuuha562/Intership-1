@@ -1,50 +1,136 @@
 # searcher.py
-from pymilvus import Collection, connections, utility, FieldSchema, CollectionSchema, DataType
+from pymilvus import (
+    Collection,
+    connections,
+    utility,
+    FieldSchema,
+    CollectionSchema,
+    DataType,
+)
 from rich.console import Console
 
 console = Console()
 
-def setup_collection(collection_name="demo_embeddings", dim=384, index_type="HNSW"):
+VECTOR_DIM = 512
+DEFAULT_COLLECTION = "demo_embeddings"
+
+
+def setup_collection(
+    collection_name: str = DEFAULT_COLLECTION,
+    dim: int = VECTOR_DIM,
+    index_type: str = "HNSW",
+):
     """
-    Creates the Milvus collection and index.
+    Create or load a Milvus collection with a selectable index type.
+
+    index_type:
+        - "FLAT"  : Exact cosine search (ground truth)
+        - "HNSW"  : Approximate nearest neighbor search
     """
+
     if not connections.has_connection("default"):
-        raise ConnectionError("No connection to Milvus.")
+        raise ConnectionError("No active connection to Milvus.")
 
+    # If collection already exists, reuse it
     if utility.has_collection(collection_name):
-        return Collection(collection_name)
+        collection = Collection(collection_name)
+    else:
+        fields = [
+            FieldSchema(
+                name="id",
+                dtype=DataType.INT64,
+                is_primary=True,
+                auto_id=True,
+            ),
+            FieldSchema(
+                name="vector",
+                dtype=DataType.FLOAT_VECTOR,
+                dim=dim,
+            ),
+            FieldSchema(
+                name="meta",
+                dtype=DataType.VARCHAR,
+                max_length=65535,
+            ),
+        ]
 
-    # 1. Define Schema
-    fields = [
-        FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
-        FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=dim),
-        FieldSchema(name="meta", dtype=DataType.VARCHAR, max_length=65535),
-    ]
-    
-    schema = CollectionSchema(fields, "Multimodal Search Collection")
-    collection = Collection(collection_name, schema)
-    
-    # 2. Define Index (Switching to COSINE to match your existing DB)
-    index_params = {
-        "metric_type": "COSINE",  # <--- CHANGED THIS from L2
-        "index_type": "HNSW",
-        "params": {"M": 8, "efConstruction": 64}
-    }
+        schema = CollectionSchema(
+            fields, description="Multimodal Vector Search Collection"
+        )
+        collection = Collection(collection_name, schema)
 
-    console.print(f"[cyan]Building Index: HNSW (COSINE)...[/cyan]")
-    collection.create_index(field_name="vector", index_params=index_params)
-    console.print("[green]Index Built![/green]")
-    
+    # Drop existing index if switching index types
+    # Drop existing index safely
+    if collection.has_index():
+        console.print("[yellow]Releasing collection before dropping index...[/yellow]")
+        try:
+            collection.release()
+        except Exception:
+            pass  # already released
+
+    console.print("[yellow]Dropping existing index...[/yellow]")
+    collection.drop_index()
+
+    # Index configuration
+    if index_type == "FLAT":
+        index_params = {
+            "index_type": "FLAT",
+            "metric_type": "COSINE",
+            "params": {},
+        }
+
+    elif index_type == "HNSW":
+        index_params = {
+            "index_type": "HNSW",
+            "metric_type": "COSINE",
+            "params": {
+                "M": 8,
+                "efConstruction": 64,
+            },
+        }
+
+    else:
+        raise ValueError(f"Unsupported index_type: {index_type}")
+
+    console.print(
+        f"[cyan]Building index: {index_type} (COSINE)...[/cyan]"
+    )
+    collection.create_index(
+        field_name="vector",
+        index_params=index_params,
+    )
+    console.print("[green]Index ready.[/green]")
+
     return collection
 
-def perform_search(collection, query_vectors, limit=5, index_type="HNSW"):
-    """
-    Executes the vector search.
-    """
-    # Force search to use COSINE to match the index
-    search_params = {"metric_type": "COSINE", "params": {"ef": 64}} # <--- CHANGED THIS from L2
 
-    # Load collection just in case
+def perform_search(
+    collection: Collection,
+    query_vectors,
+    limit: int = 5,
+    index_type: str = "HNSW",
+):
+    """
+    Execute vector search using the specified index type.
+    """
+
+    if index_type == "FLAT":
+        search_params = {
+            "metric_type": "COSINE",
+            "params": {},
+        }
+
+    elif index_type == "HNSW":
+        search_params = {
+            "metric_type": "COSINE",
+            "params": {
+                "ef": 64,
+            },
+        }
+
+    else:
+        raise ValueError(f"Unsupported index_type: {index_type}")
+
     collection.load()
 
     results = collection.search(
@@ -52,6 +138,8 @@ def perform_search(collection, query_vectors, limit=5, index_type="HNSW"):
         anns_field="vector",
         param=search_params,
         limit=limit,
-        output_fields=["meta"]
+        output_fields=["meta"],
     )
+
+    # Return hits directly (Milvus returns a list per query)
     return results[0]
